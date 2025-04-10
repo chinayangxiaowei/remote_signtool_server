@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/html" lang="utf-8">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>远程签名工具</title>
+  <style type="text/css" media="screen">
+    body {
+      overflow: hidden;
+      font-size: 14px;
+      margin: 2px 0;
+    }
+    hr {
+      height: 1px;
+      margin: 2px 0;
+    }
+    .vertical-line {
+      border-left: 1px solid rgba(187, 190, 190, 0.959);
+      width: 2px;
+      height: 100%;
+      margin: 0;
+      display: inline-block;
+    }
+    #editor {
+      margin: 33px 0px 0px 0px;
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+    }
+  </style>
+</head>
+<body>
+<hr size ="1" />&nbsp;&nbsp;
+<div class="vertical-line">&nbsp;</div>
+<label for="message">请选择签名文件：</label>
+<input type="file" id="signfile" name="file" accept=".exe, *.dll, *.ocx"/>
+<button id="signButton">签名</button>&nbsp;&nbsp;&nbsp;&nbsp;
+<div class="vertical-line">&nbsp;</div>
+返回状态：<span id="download"></span>
+<hr size="1" />
+<pre id="editor"></pre>
+<script type="text/javascript" src="jquery-3.7.1.min.js"></script>
+<script src="src-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
+<script>
+  var editor = ace.edit("editor");
+  editor.setTheme("ace/theme/xcode");
+  editor.session.setMode("ace/mode/c_cpp");
+
+
+  $("#signButton").click(function(){
+    const cur_time = new Date(); //开始执行时间
+    const file = document.getElementById("signfile").files[0];
+    const file_info = document.getElementById("signfile").value;
+    const file_info_arr = file_info.split("\\");
+    const file_name = file_info_arr[file_info_arr.length - 1];
+
+    if (file == null){
+      alert('请选择一个可签名的文件');
+      return;
+    }
+
+    $("#download").text("");
+    editor.setValue("正在处理中......");
+    editor.clearSelection();
+
+    const fd = new FormData();
+    fd.append('file', file); //dump文件对象
+    fd.append('file_name', file_name); //dump文件名
+    fd.append('response_type', "json"); //dump文件名
+
+    $.ajax({
+      type: 'POST',
+      url: './sign_file',
+      data: fd,
+      processData: false,
+      contentType: false,
+      dataType: "json",   // 预期返回一个 json 类型数据
+      success: function (data) {   // data是形参名，代表返回的数据
+        console.log(data);
+
+        if(data.statusCode === 1){
+          const old_time = new Date();
+          const diff_time = (old_time - cur_time) / 1000; //秒
+          //alert('文件上传完成，使用时间 '+diff_time+'s');
+          editor.setValue(data.message);
+          editor.clearSelection();
+          $("#download").html("签名成功, 请<a id='download_link' download='" + file_name + "' href='" + data.filename + "'>下载</a>");
+          $("#download_link").click(function(){
+            $("#download").html("签名成功, 已下载, 下载连接已失效!");
+          });
+        }else{
+          $("#download").text("签名失败");
+        }
+      }
+    });
+  });
+
+
+
+</script>
+
+</body>
+</html>
